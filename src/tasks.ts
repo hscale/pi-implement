@@ -3,6 +3,11 @@ import { completeIsolatedText, parseJsonResponse } from "./model.ts";
 
 export interface TaskReference {
 	title: string;
+	prompt?: string;
+	id?: string;
+	cardPath?: string;
+	dependencies?: string[];
+	status?: string;
 }
 
 export interface TaskIndex {
@@ -55,15 +60,34 @@ export async function indexTaskFile(markdown: string, ctx: TaskIndexContext): Pr
 }
 
 export function buildTaskFilePrompt(sourcePath: string, taskNumber: number, task: TaskReference): string {
-	return `Read ${JSON.stringify(sourcePath)} and implement task #${taskNumber} (${JSON.stringify(task.title)}).
+	if (task.prompt) {
+		return task.prompt;
+	}
 
-Use the task file itself as the authoritative source for the task requirements,
-shared constraints and acceptance criteria.
+	const parts: string[] = [
+		`Read ${JSON.stringify(sourcePath)} and implement task #${taskNumber} (${JSON.stringify(task.title)}).`,
+		"",
+	];
 
-Complete only this task.
-Do not start subsequent tasks.
+	if (task.cardPath) {
+		parts.push(`Authoritative task card: ${JSON.stringify(task.cardPath)}`);
+	}
+	if (task.dependencies && task.dependencies.length > 0) {
+		parts.push(`Dependencies: ${task.dependencies.join(", ")}`);
+		parts.push("Start only when dependencies are complete.");
+	}
 
-Do not perform remote Git operations.
-Do not push, pull, fetch, clone, or modify remotes.
-Do not create commits; the implementation workflow manages commits when enabled.`;
+	parts.push(
+		"Use the task file itself as the authoritative source for the task requirements,",
+		"shared constraints and acceptance criteria.",
+		"",
+		"Complete only this task.",
+		"Do not start subsequent tasks.",
+		"",
+		"Do not perform remote Git operations.",
+		"Do not push, pull, fetch, clone, or modify remotes.",
+		"Do not create commits; the implementation workflow manages commits when enabled.",
+	);
+
+	return parts.join("\n");
 }
